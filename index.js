@@ -12,7 +12,6 @@ const { debug } = require('./package');
 const {
     chatId,
     maxAge,
-    interval,
     userToken,
     groupToken
 } = require('./config');
@@ -29,12 +28,6 @@ if (!chatId) {
     );
 }
 
-if (!interval) {
-    throw new ReferenceError(
-        'Параметр `interval` не указан в файле конфигурации'
-    );
-}
-
 // Init
 const vk = new VK({
     token: userToken
@@ -47,6 +40,8 @@ const group = groupToken
     : null
 ;
 
+const sender = group || vk;
+
 const messages = new Map();
 
 // Functions
@@ -57,29 +52,13 @@ function notification(message, params = {}) {
         chat_id: chatId
     };
 
-    const sender = group || vk;
-
     return sender.api.messages.send(params);
 }
 
-function chunk(array, count = array.length) {
-    if (array.length <= count) {
-        return [array];
-    }
-    
-    const chunks = [];
-    const iterations = Math.ceil(array.length / count);
-    
-    for (let i = 0; i < iterations; i++) {
-        chunks.push(
-            array.slice(i * count, i * count + count)
-        );
-    }
-    
-    return chunks;
-}
-
 // Functional
+let editedMessages = 0;
+let deletedMessages = 0;
+
 vk.updates.on('message', async(context) => {
     let {
         text,
@@ -92,10 +71,6 @@ vk.updates.on('message', async(context) => {
     if (
         isOutbox
         || senderId < 0
-        || (
-            debug
-            && senderId === 479078633
-        )
     ) {
         return;
     }
@@ -104,16 +79,22 @@ vk.updates.on('message', async(context) => {
     attachments = context.attachments;
 
     if (!messages.has(messageId)) {
-        if (!context.hasText) {
-            text = 'Нет текста';
-        }
-
-        messages.set(messageId, {
+        let _context = {
             text,
             senderId,
             attachments,
-            createdAt: Date.now()
-        });
+            createdAt: Date.now(),
+        };
+
+        if (!context.hasText) {
+            _context.text = 'Нет текста';
+        }
+
+        if (context.hasAttachments('audio_message') && sender === group) {
+            _context.audioMessage = context.getAttachments('audio_message')[0].url;
+        }
+
+        messages.set(messageId, _context);
     }
 
     if (context.is('edit_message')) {
@@ -139,55 +120,60 @@ vk.updates.on('message', async(context) => {
             attachments,
             createdAt: currentMessage.createdAt
         });
+
+        editedMessages++;
     }
+});
+
+vk.updates.on(['set_message_flags'], async(context) => {
+    if (context.flags !== 131200) return;
+
+    const message = messages.get(context.id);
+    if (!message) return;
+
+    const [user] = await vk.api.users.get({
+        user_ids: message.senderId
+    });
+
+    if (message.audioMessage && sender === group) {
+        const attachment = await sender.upload.audioMessage({
+            source: message.audioMessage,
+            peer_id: user.id
+        });
+
+        message.attachments.push(attachment);
+    }
+
+    await notification(stripIndent`
+        [id${message.senderId}|${user.first_name}] Удалил сообщение
+        <<${message.text}>>
+    `, {
+        attachment: message.attachments
+    });
+
+    messages.delete(context.id);
+
+    deletedMessages++;
 });
 
 vk.updates.startPolling();
 
+// Intervals
 setInterval(async() => {
-    const keys = messages.keys();
-    const messageIds = [];
-
-    for (const key of keys) {
-        messageIds.push(key);
-    }
-
-    if (!messageIds.length) return;
-
-    const parts = chunk(messageIds, 100);
-
-    for (const part of parts) {
-        const { items: currentMessages } = await vk.api.messages.getById({
-            message_ids: part
-        });
-
-        for (const [messageId, message] of messages) {
-            const currentMessage = currentMessages.find((_message) => (
-                messageId === _message.id
-            ));
-            
-            if (!currentMessage) {
-
-                const [user] = await vk.api.users.get({
-                    user_ids: message.senderId
-                });
-
-                await notification(stripIndent`
-                    [id${message.senderId}|${user.first_name}] Удалил сообщение
-                    <<${message.text}>>
-                `, {
-                    attachment: message.attachments
-                });
-
-                messages.delete(messageId);
-            }
-        }
-    }
-
-    // Auto clear
     for (const [messageId, message] of messages) {
         if (Date.now() - message.createdAt > maxAge) {
             messages.delete(messageId);
         }
     }
-}, interval);
+}, 15000);
+
+if (debug) {
+    setInterval(async() => {
+        await notification(stripIndent`
+            Статистика:
+            - Удалённых сообщений: ${deletedMessages}
+            - Изменённых сообщений: ${editedMessages}
+            - Сообщений сохранено сейчас: ${messages.size}
+        `);
+    }, 21600000);
+}

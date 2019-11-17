@@ -1,7 +1,6 @@
 {
     "userToken": "",
     "chatId": 0,
-    "interval": 15000,
     "maxAge": 1800000,
     "groupToken": ""
 }
