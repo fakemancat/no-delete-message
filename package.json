@@ -1,6 +1,6 @@
 {
   "name": "no-delete-message",
-  "version": "0.0.0-beta.1",
+  "version": "0.0.0-beta.2",
   "description": "Этот скрипт позволяет Вам видеть все удалённые сообщения Ваших собеседников во ВКонтакте",
   "main": "index.js",
   "repository": "https://github.com/fakemancat/no-delete-message",

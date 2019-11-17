@@ -9,7 +9,13 @@ const { VK } = require('vk-io');
 const { stripIndent } = require('common-tags');
 
 const { debug } = require('./package');
-const { userToken, chatId, interval, maxAge } = require('./config');
+const {
+    chatId,
+    maxAge,
+    interval,
+    userToken,
+    groupToken
+} = require('./config');
 
 if (!userToken) {
     throw new ReferenceError(
@@ -34,6 +40,13 @@ const vk = new VK({
     token: userToken
 });
 
+const group = groupToken
+    ? new VK({
+        token: groupToken
+    })
+    : null
+;
+
 const messages = new Map();
 
 // Functions
@@ -44,7 +57,9 @@ function notification(message, params = {}) {
         chat_id: chatId
     };
 
-    return vk.api.messages.send(params);
+    const sender = group || vk;
+
+    return sender.api.messages.send(params);
 }
 
 function chunk(array, count = array.length) {
