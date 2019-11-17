@@ -22,7 +22,8 @@ git clone https://github.com/fakemancat/no-delete-message; cd no-delete-message;
 {
     "userToken": "",
     "chatId": 0,
-    "interval": 15000
+    "interval": 15000,
+    "maxAge": 1800000
 }
 ```
 
@@ -31,8 +32,9 @@ git clone https://github.com/fakemancat/no-delete-message; cd no-delete-message;
 |userToken|string|Ключ доступа пользователя от KateMobile|*пустая строка*|
 |chatId|number|Айди беседы, куда будут высылаться уведомления|0|
 |interval|number|Частота проверки сообщений|15000|
+|maxAge|number|Время через которое любое сообщение после его отправки больше не будет проверяться на удаление (От утечки ОЗУ)|1800000|
 
-```interval``` должен быть в виде миллисекунд, где 1 секунда = 1000 миллисекунд.
+```interval``` и ```maxAge``` должны быть в виде миллисекунд, где 1 секунда = 1000 миллисекунд.
 
 ### Запуск
 Для запуска скрипта требуется ввести:

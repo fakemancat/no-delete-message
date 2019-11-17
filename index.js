@@ -9,7 +9,7 @@ const { VK } = require('vk-io');
 const { stripIndent } = require('common-tags');
 
 const { debug } = require('./package');
-const { userToken, chatId, interval } = require('./config');
+const { userToken, chatId, interval, maxAge } = require('./config');
 
 if (!userToken) {
     throw new ReferenceError(
@@ -70,7 +70,6 @@ vk.updates.on('message', async(context) => {
         text,
         senderId,
         isOutbox,
-        subTypes,
         attachments,
         id: messageId,
     } = context;
@@ -89,13 +88,11 @@ vk.updates.on('message', async(context) => {
     await context.loadMessagePayload();
     attachments = context.attachments;
 
-    const [user] = await vk.api.users.get({ user_ids: senderId });
-
     if (!messages.has(messageId)) {
         if (!context.hasText) {
             text = 'Нет текста';
         }
-        
+
         messages.set(messageId, {
             text,
             senderId,
@@ -104,8 +101,10 @@ vk.updates.on('message', async(context) => {
         });
     }
 
-    if (subTypes.includes('edit_message')) {
+    if (context.is('edit_message')) {
         const currentMessage = messages.get(messageId);
+
+        const [user] = await vk.api.users.get({ user_ids: senderId });
 
         await notification(stripIndent`
             [id${senderId}|${user.first_name}] Изменил сообщение
@@ -167,6 +166,13 @@ setInterval(async() => {
 
                 messages.delete(messageId);
             }
+        }
+    }
+
+    // Auto clear
+    for (const [messageId, message] of messages) {
+        if (Date.now() - message.createdAt > maxAge) {
+            messages.delete(messageId);
         }
     }
 }, interval);
