@@ -1,0 +1,16 @@
+{
+  "name": "no-delete-message",
+  "version": "0.0.0-beta.1",
+  "description": "Этот скрипт позволяет Вам видеть все удалённые сообщения Ваших собеседников во ВКонтакте",
+  "main": "index.js",
+  "repository": "https://github.com/fakemancat/no-delete-message",
+  "author": "Fakeman Cat",
+  "license": "MIT",
+  "dependencies": {
+    "vk-io": "^4.0.0-rc.27"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "debug": false
+}
