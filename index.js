@@ -10,11 +10,19 @@ const { stripIndent } = require('common-tags');
 
 const { debug } = require('./package');
 const {
+    userId,
     chatId,
     maxAge,
+    chatIds,
     userToken,
     groupToken
 } = require('./config');
+
+if (!userId) {
+    throw new ReferenceError(
+        'Параметр `userId` не указан в файле конфигурации'
+    );
+}
 
 if (!userToken) {
     throw new ReferenceError(
@@ -69,8 +77,27 @@ vk.updates.on('message', async(context) => {
     } = context;
 
     if (
+        senderId === userId
+        && context.text === 'stats'
+    ) {
+        await notification(stripIndent`
+            Статистика:
+            - Удалённых сообщений: ${deletedMessages}
+            - Изменённых сообщений: ${editedMessages}
+            - Сообщений сохранено сейчас: ${messages.size}
+        `);
+
+        return;
+    }
+
+    if (
         isOutbox
         || senderId < 0
+        || (
+            context.isChat
+            && chatIds.length
+            && !chatIds.includes(context.chatId)
+        )
     ) {
         return;
     }
@@ -126,7 +153,7 @@ vk.updates.on('message', async(context) => {
 });
 
 vk.updates.on(['set_message_flags'], async(context) => {
-    if (context.flags !== 131200) return;
+    if (!context.isDeletedForAll) return;
 
     const message = messages.get(context.id);
     if (!message) return;

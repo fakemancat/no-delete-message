@@ -2,5 +2,7 @@
     "userToken": "",
     "chatId": 0,
     "maxAge": 1800000,
-    "groupToken": ""
+    "groupToken": "",
+    "chatIds": [],
+    "userId": 0
 }
