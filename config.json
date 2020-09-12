@@ -1,5 +1,5 @@
 {
-    "userToken": "",
+    "userToken": "токен",
     "chatId": 0,
     "maxAge": 1800000,
     "groupToken": "",
